@@ -10,6 +10,7 @@ from utils import APIException, generate_sitemap
 from admin import setup_admin
 from models import db, User, People, Planets, Vehicles, Likes
 #from models import Person
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, JWTManager
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -25,6 +26,49 @@ MIGRATE = Migrate(app, db)
 db.init_app(app)
 CORS(app)
 setup_admin(app)
+
+app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this!
+jwt = JWTManager(app)
+
+# Creo el registro del usuario
+
+@app.route("/signup", methods=["POST"])
+def signup():
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
+    user_signup= User.query.filter_by(email=email).first()
+
+    if email != user_signup.email or password != user_signup.password:
+        return jsonify({"msg": "Bad email or password"}), 401
+
+    access_token = create_access_token(identity=email)
+    return jsonify(access_token=access_token)
+
+    # Inicio de sesión
+
+@app.route("/login", methods=["POST"])
+def login():
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
+    user_login= User.query.filter_by(email=email).first()
+
+    if email != user_login.email or password != user_login.password:
+        return jsonify({"msg": "Bad email or password"}), 401
+
+    access_token = create_access_token(identity=email)
+    return jsonify(access_token=access_token)
+
+    # Validación
+
+@app.route("/private", methods=["GET"])
+@jwt_required()
+def protected():
+    # Access the identity of the current user with get_jwt_identity
+    
+    current_user = get_jwt_identity()
+    user_private= User.query.filter_by(email=current_user).first()
+    return jsonify(logged_in_as=user_private.serialize()), 200
+
 
 # Handle/serialize errors like a JSON object
 @app.errorhandler(APIException)
