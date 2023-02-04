@@ -2,6 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import os
+import json
 from flask import Flask, request, jsonify, url_for
 from flask_migrate import Migrate
 from flask_swagger import swagger
@@ -32,17 +33,27 @@ jwt = JWTManager(app)
 
 # Creo el registro del usuario
 
-@app.route("/signup", methods=["POST"])
+@app.route('/signup', methods=['POST'])
 def signup():
-    email = request.json.get("email", None)
-    password = request.json.get("password", None)
-    user_signup= User.query.filter_by(email=email).first()
 
-    if email != user_signup.email or password != user_signup.password:
-        return jsonify({"msg": "Bad email or password"}), 401
+    body = json.loads(request.data)
 
-    access_token = create_access_token(identity=email)
-    return jsonify(access_token=access_token)
+    user = User.query.filter_by(email=body["email"]).first() 
+    
+    if user is None:
+        the_user = User(email=body["email"], password=body["password"])
+        
+        db.session.add(the_user)
+        db.session.commit()
+        response_body = {
+            "msg": "El usuario fue creado con exito"
+        }
+        return jsonify(response_body), 200
+
+    response_body = {
+            "msg": "El usuario ya existe"
+        }
+    return jsonify(response_body), 400
 
     # Inicio de sesión
 
